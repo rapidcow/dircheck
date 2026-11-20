@@ -1,0 +1,37 @@
+; modified version of mtree(5) where:
+;
+;  * trivnote libexpr scheme-like typed strings
+;       (#"\B{ ... }" for byte strings; but only flat)
+;       (must be symbol => string / byte string pairs)
+;       (all strings are UNICODE.)
+;    comment char is ";" instead of "#" too.
+;  * iso 8601 as an alternative to time as unix epoch.
+;       (this just has to be dispatched by parsing the string)
+;       (Zulu string or fixed offset.
+;  * unicode file names (though such names must be
+;       explicitly written as a string.  first character
+;       dispatches.)
+;  * type is slightly modified mtree type
+;       S_IFDIR => tree
+;       S_IFREG => file
+;       S_IFLNK => link
+;  * #( escapes to scheme-ish code (like lilypond???))
+;       But it doesn't actually run any code; it just
+;       dispatches to a special mode.  it is also scoped
+;       to a directory and its descendents; leaving ..
+;       forgets about this.  the null is the literal
+;       "()", it doesn't open a new list but treated as
+;       an atom that clears everything.
+
+#(set type "file" uid 501 gid 20 mode 0755 nlink 1)
+index.html      digest.sha256 #"\B{...}" type file
+"tricky name"   ; implicit ok
+
+src             type tree
+   "very-long-name" \
+      ; whole comments
+      mode 0644
+
+   ..  ; back to src
+   #(set type () uid () gid () mode () nlink ())
+..  ; back .
