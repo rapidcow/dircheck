@@ -6,19 +6,19 @@ use warnings;
 
 =head1 NAME
 
-dircheck - directory tree specification compiler
+dirc - directory tree specification compiler
 
 =head1 SYNOPSIS
 
-    dircheck [-C codeset ...] [-o output] [spec]
-    dircheck -V [-V]
-    dircheck -h
+    dirc [-C codeset ...] [-o output] [spec]
+    dirc -V [-V]
+    dirc -h
 
-    dircheck tree.spec | mtree -p site
+    dirc tree.spec | mtree -p site
 
 =head1 DESCRIPTION
 
-C<dircheck> reads a specification in the dircheck dialect of
+C<dirc> reads a specification in the dircheck dialect of
 L<mtree(5)> (see L<RdKw::Archive::Tree>) and writes it as plain
 L<mtree(5)>, for L<mtree(8)> or L<bsdtar(1)> to check or use.
 It reads standard input if I<spec> is missing or C<->, and writes

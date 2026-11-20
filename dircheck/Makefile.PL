@@ -22,10 +22,10 @@ my %WriteMakefileArgs = (
 		'RdKw::I18N::CodeSets' => '0',
 	},
 	EXE_FILES => [
-		'script/dircheck',
+		'script/dirc',
 	],
 	MAN1PODS => {
-		'script/dircheck' => 'blib/man1/dircheck.1',
+		'script/dirc' => 'blib/man1/dirc.1',
 	},
 	dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz' },
 	clean => { FILES => 'Archive-Tree-*' },
