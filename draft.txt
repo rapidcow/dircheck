@@ -30,7 +30,9 @@ index.html      digest.sha256 #"\B{...}" type file
 src             type tree
    "very-long-name" \
       ; whole comments
-      mode 0644
+      mode 0644 \
+      time "2026-11-20T06:19:30-06:00"
+    ; ^^^^ aka 1795177170  (human annotation!)
 
    a type tree    ; push a
       b type file
