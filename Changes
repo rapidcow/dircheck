@@ -1,0 +1,7 @@
+Revision history of Archive-Tree
+
+
+0.00_00  2026-11-20  RC
+    + dircheck: a command-line skeleton.  It takes -C, -h and -V
+      (as siteconf does), and reads no spec yet.
+    + RdKw::Archive::Tree: the version, and nothing else yet.

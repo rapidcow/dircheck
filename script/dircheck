@@ -1,0 +1,118 @@
+#!perl
+
+use 5.008;
+use strict;
+use warnings;
+
+=head1 NAME
+
+dircheck - directory tree specification compiler
+
+=head1 SYNOPSIS
+
+    dircheck [-C codeset ...] [spec ...]
+    dircheck -V [-V]
+    dircheck -h
+
+=head1 DESCRIPTION
+
+C<dircheck> will read specifications in the dircheck dialect of
+L<mtree(5)> (see F<draft.txt> in the source distribution).  This
+version checks that each I<spec> can be opened, and stops there.
+
+File names and arguments are read as L<RdKw::I18N::CodeSets> says:
+as the locale says, but for what C<DIRCHECK_CODESETS> and then C<-C>
+say.  A file name that cannot be spelled is an error.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-C> I<codeset>
+
+Read arguments and file names, and write messages, in these code
+sets, after what C<DIRCHECK_CODESETS> says.  It must come first,
+before any other option, as in L<siteconf>.
+
+=item B<-h>, B<--help>
+
+Print usage and exit.
+
+=item B<-V>, B<--version>
+
+Print the version and exit.  Repeat as C<-VV> for library versions.
+
+=back
+
+=head1 ENVIRONMENT
+
+=over
+
+=item B<DIRCHECK_CODESETS>
+
+Code sets, as for C<-C>, comma-separated.
+
+=back
+
+=head1 EXIT STATUS
+
+0 on success, 1 if a I<spec> cannot be read, and 2 for a usage error.
+
+=cut
+
+use File::Basename qw( basename );
+use Getopt::Long ();
+
+use Encode ();
+use RdKw::I18N::CodeSets ();
+use RdKw::Archive::Tree;
+
+my $cs = RdKw::I18N::CodeSets->locale;
+my $me = basename($0);
+$cs->parse_from_env('DIRCHECK_CODESETS', prog => $me);
+my $offset = $cs->parse_from_argv(\@ARGV, prog => $me);
+$cs->initstd( stderr => Encode::FB_PERLQQ() );
+
+my $prog = basename($cs->un_argv($0, { check => Encode::FB_PERLQQ() }));
+my $usage = "usage: $prog [-C codeset ...] [spec ...]\n"
+	. "       $prog -V [-V]\n";
+
+@ARGV = $cs->un_argv(@ARGV, { start => 1 + $offset, prog => $prog });
+
+Getopt::Long::Configure(qw( bundling no_ignore_case ));
+Getopt::Long::GetOptions(
+	'h|help'     => sub { print $usage; exit 0 },
+	'V|version+' => \( my $vee ),
+	'C:s'        => sub { usage_error("too late to -C now.") },
+) or do { print STDERR $usage; exit 2 };
+
+if ($vee) {
+	print "$prog version $RdKw::Archive::Tree::VERSION\n";
+	exit 0 if $vee == 1;
+	print "perl version $], @{[ $cs->un_fs($^X) ]}\n";
+	foreach my $fren (qw( Encode RdKw::I18N::CodeSets )) {
+		my $ver = $fren->VERSION();
+		(my $name = $fren) =~ s/^RdKw:://;
+		print "$name version " . (defined $ver ? $ver : '(none)') . "\n";
+	}
+	exit 0;
+}
+
+my $status = 0;
+foreach my $spec (@ARGV) {
+	my $fh;
+	unless (open $fh, '<', $cs->to_fs($spec, { prog => $prog })) {
+		print STDERR $cs->tagmsg($prog =>
+			$cs->diag("cannot open %q: %s", $spec, "$!"));
+		$status = 1;
+		next;
+	}
+	close $fh;
+}
+exit $status;
+
+sub usage_error
+{
+	print STDERR $cs->tagmsg($prog => $_[0]);
+	exit 2;
+}
