@@ -19,13 +19,16 @@ my %WriteMakefileArgs = (
 	PREREQ_PM => {
 		'version' => '0',
 		'Encode' => '0',
+		'Time::Piece' => '0',
 		'RdKw::I18N::CodeSets' => '0',
 	},
 	EXE_FILES => [
 		'script/dirc',
+		'script/dirc-git',
 	],
 	MAN1PODS => {
 		'script/dirc' => 'blib/man1/dirc.1',
+		'script/dirc-git' => 'blib/man1/dirc-git.1',
 	},
 	dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz' },
 	clean => { FILES => 'Archive-Tree-*' },

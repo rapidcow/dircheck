@@ -1,0 +1,241 @@
+#!perl
+
+use 5.008;
+use strict;
+use warnings;
+
+=head1 NAME
+
+dirc-git - write a Git tree as a tar archive
+
+=head1 SYNOPSIS
+
+    dirc-git [-C codeset ...] [options] [treeish [path ...]]
+    dirc-git -V [-V]
+    dirc-git -h
+
+    dirc-git --prefix site-1.0/ --gid wheel:0 v1.0 ./doc/html > site.tar
+
+=head1 DESCRIPTION
+
+C<dirc-git> writes I<treeish> (C<HEAD>), or the I<path>s in it, as
+a ustar archive, as C<git archive --format=tar> does.  Unlike
+git-archive, the owner, group and time of every entry, and the mask
+of every mode, can be chosen, and the archive is the same whenever
+the tree is.  If I<treeish> is a commit, the archive has its ID in a
+pax global header, which C<git get-tar-commit-id> reads.
+
+A I<path> may have a C<.> component.  What comes before it is kept
+in the archive, and what comes after it is not:
+
+    doc/html      doc/, doc/html/, doc/html/index.html
+    doc/./html    doc/, doc/index.html
+    ./doc/html    index.html
+
+See L<RdKw::DVCS::Git::Tar> for the rest.
+
+Arguments are read as L<RdKw::I18N::CodeSets> says, as for L<dirc>,
+and given to Git as UTF-8.  The names in the archive are the bytes
+that Git has.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-C> I<codeset>
+
+Read arguments, and write messages, in these code sets.  It must come
+first, as for L<dirc>.  C<-C argv:utf-8> reads arguments as UTF-8
+whatever the locale says.
+
+=item B<--git-dir> I<dir>
+
+Read the repository at I<dir>: sets C<GIT_DIR>.
+
+=item B<--prefix> I<prefix>
+
+Put I<prefix> before every name.  As for git-archive, end it with
+C</> for a directory.
+
+=item B<--uid> I<name>B<:>I<id>
+
+=item B<--gid> I<name>B<:>I<id>
+
+The owner or group of every entry (C<root:0>).  The name may be
+empty: C<:0>.
+
+=item B<--mtime> I<seconds>
+
+The time of every entry, in seconds since 1970: the committer's time,
+or C<0> if I<treeish> is a tree.
+
+=item B<--umask> I<mask>
+
+=item B<--fmask> I<mask>
+
+=item B<--dmask> I<mask>
+
+What to clear, in octal, from the mode of files (C<0666>, or C<0777>
+if executable; B<--fmask>), of directories (C<0777>; B<--dmask>), or
+of both (B<--umask>).  Each is C<022>.  git-archive's is C<002>.
+
+=item B<-o> I<output>
+
+Write to I<output> instead of standard output.  It is removed if
+there is an error.
+
+=item B<-z>
+
+Compress with gzip, with no name and a time of 0 in the gzip
+header.  The bytes depend on the version of zlib.
+
+=item B<-h>, B<--help>
+
+Print usage and exit.
+
+=item B<-V>, B<--version>
+
+Print the version and exit.  Repeat as C<-VV> for library versions.
+
+=back
+
+=head1 ENVIRONMENT
+
+=over
+
+=item B<DIRCHECK_CODESETS>
+
+Code sets, as for C<-C>, comma-separated.
+
+=back
+
+=head1 EXIT STATUS
+
+0 on success, 1 for an error, and 2 for a usage error.
+
+=cut
+
+use File::Basename qw( basename );
+use Getopt::Long ();
+
+use Encode ();
+use RdKw::I18N::CodeSets ();
+use RdKw::Archive::Tree;
+use RdKw::DVCS::Git::Tar;
+
+my $cs = RdKw::I18N::CodeSets->locale;
+my $me = basename($0);
+$cs->parse_from_env('DIRCHECK_CODESETS', prog => $me);
+my $offset = $cs->parse_from_argv(\@ARGV, prog => $me);
+$cs->initstd( stderr => Encode::FB_PERLQQ() );
+
+my $prog = basename($cs->un_argv($0, { check => Encode::FB_PERLQQ() }));
+my $usage = "usage: $prog [-C codeset ...] [--git-dir dir] [--prefix prefix]\n"
+	. "           [--uid name:id] [--gid name:id] [--mtime seconds]\n"
+	. "           [--umask mask] [--fmask mask] [--dmask mask]\n"
+	. "           [-z] [-o output] [treeish [path ...]]\n"
+	. "       $prog -V [-V]\n";
+
+@ARGV = $cs->un_argv(@ARGV, { start => 1 + $offset, prog => $prog });
+
+Getopt::Long::Configure(qw( bundling no_ignore_case ));
+my %o;
+Getopt::Long::GetOptions(
+	\%o, qw( git-dir=s prefix=s uid=s gid=s mtime=s umask=s fmask=s dmask=s
+		o=s z ),
+	'h|help'     => sub { print $usage; exit 0 },
+	'V|version+' => \( my $vee ),
+	'C:s'        => sub { usage_error("too late to -C now.") },
+) or do { print STDERR $usage; exit 2 };
+
+if ($vee) {
+	print "$prog version $RdKw::Archive::Tree::VERSION\n";
+	exit 0 if $vee == 1;
+	print "perl version $], @{[ $cs->un_fs($^X) ]}\n";
+	foreach my $fren (qw( Encode RdKw::I18N::CodeSets )) {
+		my $ver = $fren->VERSION();
+		(my $name = $fren) =~ s/^RdKw:://;
+		print "$name version " . (defined $ver ? $ver : '(none)') . "\n";
+	}
+	my ($git) = `git --version`;
+	print defined $git ? $git : "git: (none)\n";
+	exit 0;
+}
+
+sub utf8_bytes { my $s = shift; utf8::encode($s); $s }
+
+my %opt;
+$ENV{GIT_DIR} = utf8_bytes($o{'git-dir'}) if defined $o{'git-dir'};
+$opt{prefix} = utf8_bytes($o{prefix}) if defined $o{prefix};
+for my $k (qw( uid gid )) {
+	defined $o{$k} or next;
+	my ($name, $id) = $o{$k} =~ /\A([^:]*):([0-9]+)\z/
+		or usage_error("--$k is name:id, as root:0");
+	my $nk = $k eq 'uid' ? 'uname' : 'gname';
+	@opt{$nk, $k} = (utf8_bytes($name), $id);
+}
+if (defined $o{mtime}) {
+	$o{mtime} =~ /\A[0-9]+\z/
+		or usage_error("--mtime is seconds since 1970");
+	$opt{mtime} = $o{mtime};
+}
+for my $k (qw( umask fmask dmask )) {
+	defined $o{$k} or next;
+	$o{$k} =~ /\A[0-7]{1,4}\z/ && oct($o{$k}) <= 0777
+		or usage_error("--$k is octal, as 022");
+}
+for my $k (qw( fmask dmask )) {
+	my $v = defined $o{$k} ? $o{$k} : $o{umask};
+	$opt{$k} = oct $v if defined $v;
+}
+my @args = map { utf8_bytes($_) } @ARGV;
+$opt{treeish} = shift @args if @args;
+$opt{paths} = \@args;
+
+my ($fh, $file);
+if (defined $o{o}) {
+	$file = $cs->to_fs($o{o}, { prog => $prog });
+	open $fh, '>', $file
+		or fail($cs->diag("cannot open %q: %s", $o{o}, "$!"));
+} else {
+	$fh = \*STDOUT;
+}
+binmode $fh;
+my $sink = $fh;
+if ($o{z}) {
+	require IO::Compress::Gzip;
+	$sink = IO::Compress::Gzip->new($fh, Time => 0, Level => 9,
+		OS_Code => 3, Minimal => 1)
+		or fail("cannot gzip: $IO::Compress::Gzip::GzipError");
+}
+
+eval {
+	# Git::Tar dies in bytes, as Git spells names
+	eval { RdKw::DVCS::Git::Tar->new(%opt)->write($sink); 1 }
+		or die Encode::decode('UTF-8', "$@", Encode::FB_PERLQQ());
+	if ($o{z}) {
+		$sink->close or die "cannot gzip: $IO::Compress::Gzip::GzipError\n";
+	}
+	close $fh or die defined $file ? $cs->diag("cannot write %q: %s",
+		$o{o}, "$!") : $cs->diag("cannot write standard output: %s", "$!");
+	1;
+} or do {
+	my $err = $@;
+	unlink $file if defined $file;
+	fail($err);
+};
+exit 0;
+
+sub fail
+{
+	my ($msg) = @_;
+	print STDERR $cs->tagmsg($prog => $msg);
+	exit 1;
+}
+
+sub usage_error
+{
+	print STDERR $cs->tagmsg($prog => $_[0]);
+	print STDERR $usage;
+	exit 2;
+}

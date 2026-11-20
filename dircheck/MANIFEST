@@ -5,8 +5,12 @@ Makefile.PL
 lib/RdKw/Archive/Tree.pm
 lib/RdKw/Archive/Tree/MTree.pm
 lib/RdKw/Archive/Tree/Reader.pm
-script/dircheck
+lib/RdKw/Archive/Ustar.pm
+lib/RdKw/DVCS/Git/Tar.pm
+script/dirc
+script/dirc-git
 t/00-load.t
 t/cli.t
+t/git.t
 t/mtree.t
 t/reader.t

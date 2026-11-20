@@ -1,6 +1,6 @@
 #!perl
 #
-# t/cli.t - dircheck options and exit status
+# t/cli.t - dirc options and exit status
 
 use 5.008;
 use strict;
@@ -11,9 +11,9 @@ use File::Temp qw( tempdir );
 use FindBin;
 
 my $script = File::Spec->catfile($FindBin::Bin, File::Spec->updir,
-	'blib', 'script', 'dircheck');
+	'blib', 'script', 'dirc');
 -f $script or $script = File::Spec->catfile($FindBin::Bin,
-	File::Spec->updir, 'script', 'dircheck');
+	File::Spec->updir, 'script', 'dirc');
 
 local $ENV{LC_ALL} = 'C.UTF-8';
 delete $ENV{DIRCHECK_CODESETS};
@@ -40,11 +40,11 @@ sub spec
 
 my ($status, $out) = run('-V');
 is($status, 0, '-V exits 0');
-like($out, qr/\Adircheck version 0\.00_00\n\z/, '-V prints the version');
+like($out, qr/\Adirc version 0\.00_00\n\z/, '-V prints the version');
 
 ($status, $out) = run('-h');
 is($status, 0, '-h exits 0');
-like($out, qr/\Ausage: dircheck /, '-h prints usage');
+like($out, qr/\Ausage: dirc /, '-h prints usage');
 
 ($status, $out) = run('-x');
 is($status, 2, 'unknown option exits 2');
@@ -54,7 +54,7 @@ is($status, 2, 'two specs exit 2');
 
 ($status, $out) = run(File::Spec->catfile($dir, 'no-such-spec'));
 is($status, 1, 'missing spec exits 1');
-like($out, qr/\Adircheck: cannot open /, 'missing spec says so');
+like($out, qr/\Adirc: cannot open /, 'missing spec says so');
 
 my $good = spec('good', qq{"caf\xc3\xa9" type file mode #o644\n});
 ($status, $out) = run($good);
@@ -70,7 +70,7 @@ ok(-s $o, '-o writes the file');
 my $bad = spec('bad', qq{a\nb mode 0644\n});
 ($status, $out) = run($bad);
 is($status, 1, 'an error exits 1');
-like($out, qr/\Adircheck: \Q$bad\E:2: .*#o644/, 'the error names the line');
+like($out, qr/\Adirc: \Q$bad\E:2: .*#o644/, 'the error names the line');
 
 ($status, $out) = run(spec('latin1', qq{a\ncaf\xe9\n}));
 like($out, qr/:2: not UTF-8/, 'the spec is UTF-8');

@@ -10,6 +10,7 @@ $VERSION = version->parse( $VERSION );
 
 use charnames ();
 use MIME::Base64 ();
+use Time::Piece ();
 
 =head1 NAME
 
@@ -471,14 +472,14 @@ sub _val_time
 	}
 	$v->[0] eq 'str' or $self->_die('`time\' is an ISO 8601 string or seconds');
 	my $iso = $v->[1];
-	my ($y, $mo, $d, $h, $mi, $s, $frac, $tz) = $iso =~ /\A
-		([0-9]{4})-([0-9][0-9])-([0-9][0-9]) T ([0-9][0-9]):([0-9][0-9]):([0-9][0-9]) (?:[.,]([0-9]{1,9}))?
-		(Z|[+-][0-9][0-9](?::?[0-9][0-9])?) \z/x
+	my ($local, $frac, $tz) = $iso =~ /\A
+		([0-9]{4}-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9])
+		(?:[.,]([0-9]{1,9}))? (Z|[+-][0-9][0-9](?::?[0-9][0-9])?) \z/x
 		or $self->_die("`time' is not YYYY-MM-DDThh:mm:ss[.f] with Z or an offset: \"$iso\"");
-	my $mdays = (31, (($y % 4 == 0 && $y % 100 != 0) || $y % 400 == 0) ? 29 : 28,
-		31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[$mo - 1];
-	$mo >= 1 && $mo <= 12 && $d >= 1 && $d <= $mdays
-		&& $h <= 23 && $mi <= 59 && $s <= 59
+	# Time::Piece reads the time as UTC, and rolls a day that is not in
+	# the month over to the next month; read it back to catch that.
+	my $t = eval { Time::Piece->strptime($local, '%Y-%m-%dT%H:%M:%S') };
+	$t && $t->strftime('%Y-%m-%dT%H:%M:%S') eq $local
 		or $self->_die("`time' is not a real time: \"$iso\"");
 	my $off = 0;
 	if ($tz ne 'Z') {
@@ -487,23 +488,10 @@ sub _val_time
 		$oh <= 23 && $om <= 59 or $self->_die("bad offset in \"$iso\"");
 		$off = ($sg eq '-' ? -1 : 1) * ($oh * 3600 + $om * 60);
 	}
-	my $sec = _days_from_civil($y, $mo, $d) * 86400
-		+ $h * 3600 + $mi * 60 + $s - $off;
+	my $sec = $t->epoch - $off;
 	$sec >= 0 or $self->_die("`time' is before 1970: \"$iso\"");
 	$frac = '' unless defined $frac;
 	[ "$sec", substr($frac . '0' x 9, 0, 9), $iso ];
-}
-
-# Days from 1970-01-01 (Howard Hinnant's days_from_civil)
-sub _days_from_civil
-{
-	my ($y, $m, $d) = @_;
-	$y -= $m <= 2;
-	my $era = int(($y >= 0 ? $y : $y - 399) / 400);
-	my $yoe = $y - $era * 400;
-	my $doy = int((153 * ($m + ($m > 2 ? -3 : 9)) + 2) / 5) + $d - 1;
-	my $doe = $yoe * 365 + int($yoe / 4) - int($yoe / 100) + $doy;
-	$era * 146097 + $doe - 719468;
 }
 
 # --- Tokens

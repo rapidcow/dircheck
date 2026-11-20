@@ -2,7 +2,7 @@ Revision history of Archive-Tree
 
 
 0.00_00  2026-11-20  RC
-    + dircheck compiles a specification (the file named, or
+    + dirc compiles a specification (the file named, or
       standard input) to mtree(5), on standard output or -o.
       It takes -C, -h and -V as siteconf does.
     + RdKw::Archive::Tree describes the specification.
@@ -12,3 +12,13 @@ Revision history of Archive-Tree
       between its digits, and needs at least one digit.
     + RdKw::Archive::Tree::MTree writes mtree(5): names spelled by
       to_fs, with \ooo for bytes that are not plain ASCII.
+      It reads ISO 8601 times with Time::Piece.
+    + dirc-git writes a Git tree, or paths in it, as a tar archive
+      (-z: gzip), with the bytes git archive writes for the same
+      umask and time.  It takes --uid and --gid as name:id, --mtime,
+      --umask, --fmask, --dmask and --prefix.  A `.' in a path
+      says where the names in the archive start.
+    + RdKw::Archive::Ustar writes ustar with pax headers, laid out
+      as git archive lays them out.
+    + RdKw::DVCS::Git::Tar reads the tree with git ls-tree and
+      cat-file, and export-ignore with git check-attr --source.
