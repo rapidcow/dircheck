@@ -9,10 +9,10 @@ Revision history of Archive-Tree
     + RdKw::Archive::Tree::Reader reads it.  The string and byte
       string escapes are those of trivnote libexpr 0.2.0, except
       that an escape without braces takes no spaces, `-' or `_'
-      between its digits, and needs at least one digit.
+      between its digits, and needs at least one digit.  It reads
+      ISO 8601 times with Time::Piece.
     + RdKw::Archive::Tree::MTree writes mtree(5): names spelled by
       to_fs, with \ooo for bytes that are not plain ASCII.
-      It reads ISO 8601 times with Time::Piece.
     + dirc-git writes a Git tree, or paths in it, as a tar archive
       (-z: gzip), with the bytes git archive writes for the same
       umask and time.  It takes --uid and --gid as name:id, --mtime,
