@@ -21,7 +21,7 @@
 ;       to a directory and its descendents; leaving ..
 ;       forgets about this.  the null is the literal
 ;       "()", it doesn't open a new list but treated as
-;       an atom that clears everything.
+;       an atom that clears that key.
 
 #(set type "file" uid 501 gid 20 mode 0755 nlink 1)
 index.html      digest.sha256 #"\B{...}" type file
