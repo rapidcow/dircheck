@@ -24,7 +24,7 @@
 ;       an atom that clears that key.
 
 #(set type "file" uid 501 gid 20 mode #o755 nlink 1)
-index.html      digest.sha256 #"\B{...}" type file
+index.html      digest.sha256 #"\B{PQtvXjCd+PzogV+QjdaCGwSWz0PNn7T/fqnAznR3CCY=}" type file
 "tricky name"   ; implicit ok
 
 src             type tree
