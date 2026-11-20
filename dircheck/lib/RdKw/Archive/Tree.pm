@@ -13,7 +13,7 @@ __END__
 
 =head1 NAME
 
-RdKw::Archive::Tree - directory tree specification compiler
+Archive::Tree - directory tree specification compiler
 
 =head1 SYNOPSIS
 
