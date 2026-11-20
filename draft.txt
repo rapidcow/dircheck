@@ -32,6 +32,8 @@ src             type tree
       ; whole comments
       mode 0644
 
+   a type tree    ; push a
+      b type file
    ..  ; back to src
    #(set type () uid () gid () mode () nlink ())
 ..  ; back .
