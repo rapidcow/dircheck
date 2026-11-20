@@ -2,6 +2,13 @@ Revision history of Archive-Tree
 
 
 0.00_00  2026-11-20  RC
-    + dircheck: a command-line skeleton.  It takes -C, -h and -V
-      (as siteconf does), and reads no spec yet.
-    + RdKw::Archive::Tree: the version, and nothing else yet.
+    + dircheck compiles a specification (the file named, or
+      standard input) to mtree(5), on standard output or -o.
+      It takes -C, -h and -V as siteconf does.
+    + RdKw::Archive::Tree describes the specification.
+    + RdKw::Archive::Tree::Reader reads it.  The string and byte
+      string escapes are those of trivnote libexpr 0.2.0, except
+      that an escape without braces takes no spaces, `-' or `_'
+      between its digits, and needs at least one digit.
+    + RdKw::Archive::Tree::MTree writes mtree(5): names spelled by
+      to_fs, with \ooo for bytes that are not plain ASCII.

@@ -10,15 +10,22 @@ dircheck - directory tree specification compiler
 
 =head1 SYNOPSIS
 
-    dircheck [-C codeset ...] [spec ...]
+    dircheck [-C codeset ...] [-o output] [spec]
     dircheck -V [-V]
     dircheck -h
 
+    dircheck tree.spec | mtree -p site
+
 =head1 DESCRIPTION
 
-C<dircheck> will read specifications in the dircheck dialect of
-L<mtree(5)> (see F<draft.txt> in the source distribution).  This
-version checks that each I<spec> can be opened, and stops there.
+C<dircheck> reads a specification in the dircheck dialect of
+L<mtree(5)> (see L<RdKw::Archive::Tree>) and writes it as plain
+L<mtree(5)>, for L<mtree(8)> or L<bsdtar(1)> to check or use.
+It reads standard input if I<spec> is missing or C<->, and writes
+standard output unless C<-o> is given.
+
+The specification is UTF-8.  The names in the output are bytes,
+spelled as the file system spells them.
 
 File names and arguments are read as L<RdKw::I18N::CodeSets> says:
 as the locale says, but for what C<DIRCHECK_CODESETS> and then C<-C>
@@ -33,6 +40,11 @@ say.  A file name that cannot be spelled is an error.
 Read arguments and file names, and write messages, in these code
 sets, after what C<DIRCHECK_CODESETS> says.  It must come first,
 before any other option, as in L<siteconf>.
+
+=item B<-o> I<output>
+
+Write to I<output> instead of standard output.  Nothing is written
+if the specification has an error.
 
 =item B<-h>, B<--help>
 
@@ -56,7 +68,8 @@ Code sets, as for C<-C>, comma-separated.
 
 =head1 EXIT STATUS
 
-0 on success, 1 if a I<spec> cannot be read, and 2 for a usage error.
+0 on success, 1 if the specification cannot be read or has an error,
+and 2 for a usage error.
 
 =cut
 
@@ -66,6 +79,8 @@ use Getopt::Long ();
 use Encode ();
 use RdKw::I18N::CodeSets ();
 use RdKw::Archive::Tree;
+use RdKw::Archive::Tree::MTree;
+use RdKw::Archive::Tree::Reader;
 
 my $cs = RdKw::I18N::CodeSets->locale;
 my $me = basename($0);
@@ -74,13 +89,14 @@ my $offset = $cs->parse_from_argv(\@ARGV, prog => $me);
 $cs->initstd( stderr => Encode::FB_PERLQQ() );
 
 my $prog = basename($cs->un_argv($0, { check => Encode::FB_PERLQQ() }));
-my $usage = "usage: $prog [-C codeset ...] [spec ...]\n"
+my $usage = "usage: $prog [-C codeset ...] [-o output] [spec]\n"
 	. "       $prog -V [-V]\n";
 
 @ARGV = $cs->un_argv(@ARGV, { start => 1 + $offset, prog => $prog });
 
 Getopt::Long::Configure(qw( bundling no_ignore_case ));
 Getopt::Long::GetOptions(
+	'o=s'        => \( my $opt_o ),
 	'h|help'     => sub { print $usage; exit 0 },
 	'V|version+' => \( my $vee ),
 	'C:s'        => sub { usage_error("too late to -C now.") },
@@ -98,21 +114,83 @@ if ($vee) {
 	exit 0;
 }
 
-my $status = 0;
-foreach my $spec (@ARGV) {
-	my $fh;
-	unless (open $fh, '<', $cs->to_fs($spec, { prog => $prog })) {
-		print STDERR $cs->tagmsg($prog =>
-			$cs->diag("cannot open %q: %s", $spec, "$!"));
-		$status = 1;
-		next;
-	}
-	close $fh;
+@ARGV <= 1 or usage_error("too many arguments");
+my $spec = @ARGV ? $ARGV[0] : '-';
+
+my $bytes = eval { slurp($spec) };
+fail($@) unless defined $bytes;
+
+my @entries = eval {
+	my $text = decode_spec($spec, $bytes);
+	RdKw::Archive::Tree::Reader->new(file => $spec)->parse($text);
+};
+fail($@) if $@;
+
+my $mtree = eval {
+	RdKw::Archive::Tree::MTree->new(
+		to_fs => sub { scalar $cs->to_fs($_[0], { prog => '' }) },
+	)->format(@entries);
+};
+fail("$spec: $@") if $@;
+
+if (defined $opt_o) {
+	open my $out, '>', $cs->to_fs($opt_o, { prog => $prog })
+		or fail($cs->diag("cannot open %q: %s", $opt_o, "$!"));
+	binmode $out;
+	print $out $mtree;
+	close $out or fail($cs->diag("cannot write %q: %s", $opt_o, "$!"));
+} else {
+	binmode STDOUT;
+	print $mtree;
+	close STDOUT or fail($cs->diag("cannot write standard output: %s", "$!"));
 }
-exit $status;
+exit 0;
+
+sub slurp
+{
+	my ($name) = @_;
+	my $fh;
+	if ($name eq '-') {
+		$fh = \*STDIN;
+	} else {
+		open $fh, '<', $cs->to_fs($name, { prog => '' })
+			or die $cs->diag("cannot open %q: %s", $name, "$!");
+	}
+	binmode $fh;
+	local $/;
+	my $data = <$fh>;
+	defined $data or $data = '';
+	$data;
+}
+
+# UTF-8, strictly; the error names the line
+sub decode_spec
+{
+	my ($name, $bytes) = @_;
+	my $line = 0;
+	my $text = '';
+	for my $part (split /(?<=\n)/, $bytes) {
+		$line++;
+		my $chars = eval {
+			Encode::decode('UTF-8', $part,
+				Encode::FB_CROAK() | Encode::LEAVE_SRC());
+		};
+		defined $chars or die "$name:$line: not UTF-8\n";
+		$text .= $chars;
+	}
+	$text;
+}
+
+sub fail
+{
+	my ($msg) = @_;
+	print STDERR $cs->tagmsg($prog => $msg);
+	exit 1;
+}
 
 sub usage_error
 {
 	print STDERR $cs->tagmsg($prog => $_[0]);
+	print STDERR $usage;
 	exit 2;
 }
